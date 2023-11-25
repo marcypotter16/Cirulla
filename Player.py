@@ -1,4 +1,4 @@
-from Board import Deck
+from Game import Deck
 from Card import Card
 
 class Player:
