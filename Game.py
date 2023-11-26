@@ -1,9 +1,15 @@
-from Card import Card
+from more_itertools import powerset
+from Card import Card, Presa
 from random import shuffle
 
 class Board:
     def __init__(self):
         self.carte: list[Card] = []
+
+    def calculate_sums(self) -> list[Presa]:
+        l = []
+        for sublist in powerset(self.carte):
+            l.append(Presa(sublist))
 
 class Deck:
     def __init__(self, size = 40):
@@ -23,7 +29,6 @@ class Deck:
         for card in self.cards:
             s += str(card) + ", "
         return s[0:-2] + "]"
-
 
 
 class Game:
