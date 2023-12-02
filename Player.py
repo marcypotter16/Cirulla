@@ -1,6 +1,6 @@
 import random
-from Game import Deck, Board
-from Card import Card
+from ConsoleGame import Deck, Board
+from Card import Card, Presa
 
 CARD_VALUES = {
     "7Q": 21,
@@ -32,7 +32,8 @@ PRIMIERA_VALUES = {
 }
 
 class Player:
-    def __init__(self):
+    def __init__(self, name: str = "Player"):
+        self.name = name
         self.hand = []
         self.won_cards = []
         self.scope = 0
@@ -104,23 +105,77 @@ class Player:
 
         return s + self.scope
     
-    def think(self, board: Board) -> Card:
+    def think(self, board: Board) -> Card | None:
+        if len(self.hand) == 0:
+            return None
         prese_possibili = set(board.calculate_sums())
+        
         # Includiamo le prese a 15
-        prese_possibili |= set([15 - s for s in prese_possibili])
+        for p in prese_possibili:
+            if p.valore <= 15:
+                cards = p.cards
+                new_p = Presa(cards)
+                new_p.valore = 15 - p.valore
+                prese_possibili.add(new_p)
+        
+        # Controlliamo se possiamo prendere e consideriamo il valore delle carte
+        best_presa = Presa([])
+        best_carta = self.hand[0]
         for card in self.hand:
-            if card in prese_possibili:
-                
-                return card
-        pass
+            for presa in prese_possibili:
+                if card.valore == presa.valore:
+                    # Se fai scopa la giochi a prescindere
+                    if set(presa.cards) == set(board.cards):
+                        return card
+                    # Se non fai scopa la giochi solo se è la carta migliore
+                    presa.add(card)
+                    if best_presa.calculate_value() < presa.calculate_value():
+                        best_presa = presa
+                        best_carta = card
+                    presa.remove(card)
+        return best_carta
+    
+    def play_card(self, card: Card, board: Board):
+        # Buona tre e dieci
+        if self.is_buona_dieci():
+            self.scope += 10
+        elif self.is_buona_tre():
+            self.scope += 3
+        # Assi
+        if card.valore == 1 and 1 not in [c.valore for c in board.cards]:
+            self.scope += 1
+            self.won_cards.extend(board.cards)
+            board.cards = []
+        
+        else:
+            prese_possibili = set(board.calculate_sums())
+        
+            for p in prese_possibili:
+                if p.valore == card.valore or p.valore + card.valore == 15:
+                    p.cards.add(card)
+                    self.won_cards.extend(p.cards)
+                    board.cards = list(set(board.cards) - set(p.cards))
+                    # Controllo se ho fatto scopa
+                    if len(board.cards) == 0:
+                        self.scope += 1
+                    break
+            else:
+                board.cards.append(card)
+        self.hand.remove(card)
+        return card
+            
+
+            
 
     def __str__(self):
-        return f"Hand: {self.hand}\nWon cards: {self.won_cards}"
+        return f"Player: {self.name}\nHand: {[str(c) for c in self.hand]}\n" +\
+            f"Won cards: {[str(c) for c in self.won_cards]}\n" +\
+            f"Scope: {self.scope}"
     
 
 class Bot(Player):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name: str = "Bot"):
+        super().__init__(name=name)
     
     def think(self, board: Board) -> Card:
         return random.choice(self.hand)
