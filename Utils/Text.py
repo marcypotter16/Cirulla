@@ -14,7 +14,7 @@ def draw_text(font: pygame.font.Font, surface: pygame.Surface, text: str,
     :param y: Y of the center of the rectangle containing the text
     :return:
     """
-    text_surface = font.render(text, True, color)
+    text_surface = font.render(str(text), True, color)
     text_rect = text_surface.get_rect()
     text_rect.topleft = (x, y)
     surface.blit(text_surface, text_rect)

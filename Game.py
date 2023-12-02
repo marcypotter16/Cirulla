@@ -1,12 +1,11 @@
 import os
-import subprocess
 
 import pygame as p
 import time
 
 from Generic.Stack import Stack
 
-clock = p.time.Clock()
+
 
 
 class Game:
@@ -14,6 +13,7 @@ class Game:
         self.need_key_event_handling = True
         self.events = None
         self.fps: int = 60
+        self.clock = p.time.Clock()
         self.font_dir = None
         self.assets_dir = None
         self.font_medium = None  # This has to be set!
@@ -58,7 +58,7 @@ class Game:
             self.get_events()
             self.update()
             self.render()
-            clock.tick(self.fps)
+            self.clock.tick(self.fps)
 
     def get_events(self):
         self.events = p.event.get()
@@ -130,10 +130,10 @@ class Game:
         self.state_stack.top().update(self.dt)
 
     def render(self):
-        # self.state_stack.top().render(self.game_canvas)
-        for layer in self.render_stack.keys():
-            for render_function in self.render_stack[layer]:
-                render_function(self.game_canvas)
+        self.state_stack.top().render(self.game_canvas)
+        # for layer in self.render_stack.keys():
+        #     for render_function in self.render_stack[layer]:
+        #         render_function(self.game_canvas)
         self.screen.blit(p.transform.scale(self.game_canvas, (self.SCREEN_W, self.SCREEN_H)), (0, 0))
         p.display.flip()  # ??
 

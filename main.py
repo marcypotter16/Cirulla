@@ -1,7 +1,8 @@
 import sys
 from Card import Card
 from ConsoleGame import Board, Deck
-from Player import Bot, Player
+from ConsolePlayer import Bot, Player
+
 
 class Game:
     def __init__(self):
@@ -14,7 +15,8 @@ class Game:
 
     def play(self):
         print("\nBenvenuto a Cirulla!\n")
-        print("Opzioni:\n\t1. Bot vs Bot\n\t2. Gioca contro il bot\n\t3. Gioca contro il bot furbo (non ancora implementata)\n\t4. Gioca contro un altro giocatore (non ancora implementata)\n")
+        print(
+            "Opzioni:\n\t1. Bot vs Bot\n\t2. Gioca contro il bot\n\t3. Gioca contro il bot furbo (non ancora implementata)\n\t4. Gioca contro un altro giocatore (non ancora implementata)\n")
         scelta = input("Inserire scelta (un inserimento non valido chiude il programma): ")
         if scelta == "1":
             self.bot_vs_bot()
@@ -45,7 +47,6 @@ class Game:
 
     def clever_bot_against_bot(self):
         pass
-
 
     def play_against_bot(self):
         # Il setup è uguale a bot vs bot

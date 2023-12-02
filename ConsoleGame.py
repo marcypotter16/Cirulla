@@ -22,6 +22,9 @@ class Board:
                 l.append(new_p)
         return l
     
+    def is_empty(self) -> bool:
+        return len(self.cards) == 0
+    
     def __str__(self) -> str:
         s = "["
         for card in self.cards:
