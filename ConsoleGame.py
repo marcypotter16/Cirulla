@@ -43,6 +43,9 @@ class Deck:
 
     def draw(self, howmany = 1) -> list:
         return [self.cards.pop() for _ in range(howmany)]
+    
+    def is_empty(self) -> bool:
+        return len(self.cards) == 0
 
     def __str__(self):
         s = "["

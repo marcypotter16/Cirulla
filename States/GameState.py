@@ -2,6 +2,7 @@ import time
 from Generic.CyclicList import CyclicList
 from Generic.Stack import Stack
 from GraphicClasses import GraphicBot, GraphicCard, GraphicDeck, GraphicPlayer, GraphicBoard
+from States.EndGame import EndGameState
 from States.State import State
 import pygame as p
 
@@ -44,6 +45,9 @@ class GameState(State):
         self.board.update()
         self.deck.update()
         if self.states.get_current() == "BeginTurn":
+            if self.deck.is_empty():
+                EndGameState(self.game).enter_state()
+                return
             self.player.draw_cards(self.deck, 3)
             self.bot.draw_cards(self.deck, 3)
             # Add 4 cards at the beginning of the game
