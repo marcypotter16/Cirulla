@@ -8,7 +8,7 @@ __eng_dict = {
     "F": "Clubs"
 }
 
-CARD_PATHS = {}
+CARD_PATHS = {"back": "./Art/Backs/back_0.png"}
 
 for i in range(1, 11):
     for s in ["P", "C", "Q", "F"]:

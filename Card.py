@@ -73,6 +73,14 @@ class Presa:
         # vari punti per le carte speciali
         s = sum([1 for c in self.cards if c not in CARD_VALUES.keys()])
         return s + sum([CARD_VALUES[str(c)] for c in self.cards if c in CARD_VALUES.keys()])
+    
+    def add(self, card: Card):
+        self.cards.add(card)
+        self.valore += card.valore
+
+    def remove(self, card: Card):
+        self.cards.remove(card)
+        self.valore -= card.valore
 
     def __eq__(self, __value: object) -> bool:
         return self.cards == __value.cards

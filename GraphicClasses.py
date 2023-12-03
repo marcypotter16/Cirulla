@@ -1,10 +1,11 @@
 from Card import Card, Hand
-from ConsoleGame import Board
+from ConsoleGame import Board, Deck
 from Game import Game
 from GraphicUtil import CARD_PATHS
 import pygame as p
 
 from ConsolePlayer import Player
+from Utils.Text import draw_centered_text
 
 
 class GraphicCard(Card):
@@ -20,6 +21,7 @@ class GraphicCard(Card):
         self.being_dragged = False
         self.dropped = False
         self.position_before_drag = position
+        self.flipped = False
 
     def move(self, x: int, y: int):
         self.position = x, y
@@ -37,9 +39,20 @@ class GraphicCard(Card):
     def render(self, surface: p.Surface):
         surface.blit(self.sprite, self.position)
 
+    def flip(self):
+        """
+        Flip the card from back to front and viceversa
+        """
+        self.flipped = not self.flipped
+        if self.flipped:
+            self.sprite = p.image.load(CARD_PATHS["back"])
+        else:
+            self.sprite = p.image.load(CARD_PATHS[str(self)])
+        self.sprite = p.transform.scale(self.sprite, (self.width, self.height))
+
     def update(self):
         if self.rect.collidepoint(self.game.mousepos):
-            print(f"Mouse is over the card {self}")
+            # print(f"Mouse is over the card {self}")
             dropped_this_frame = self.dropped
             if self.game.clicked_sx == 1:
                 print(f"Mouse clicked on the card {self}")
@@ -52,6 +65,13 @@ class GraphicCard(Card):
             self.dropped = self.dropped and not dropped_this_frame
         if self.being_dragged:
             self.move_center(*self.game.mousepos)
+
+    @staticmethod
+    def from_card(card: Card, game: Game):
+        """
+        Create a GraphicCard from a Card
+        """
+        return GraphicCard(game, card.valore, card.seme)
 
 
 class GraphicBoard(Board):
@@ -82,6 +102,23 @@ class GraphicBoard(Board):
             card.move(self.topleft[0] + i * card.width, self.topleft[1])
             card.drop()
 
+class GraphicDeck(Deck):
+    def __init__(self, game: Game, size=40, position: tuple[int, int] = (0, 0), card_dimensions: tuple[int, int] = (50, 75)):
+        super().__init__(size)
+        self.game = game
+        self.position = position
+        self.dimensions = card_dimensions
+        self.sprite = p.image.load(CARD_PATHS["back"])
+        self.sprite = p.transform.scale(self.sprite, self.dimensions)
+        self.rect = p.Rect(self.position, self.dimensions)
+        
+    def update(self):
+        pass
+
+    def render(self, surface: p.Surface):
+        surface.blit(self.sprite, self.position)
+        draw_centered_text(self.game.font_medium, surface, str(len(self.cards)), (255, 255, 255), self.rect)
+
 
 class GraphicHand(Hand):
     def __init__(self, game: Game, capacity=3, topleft: tuple[int, int] = (0, 0), card_dimensions: tuple[int, int] = (50, 75)):
@@ -94,18 +131,35 @@ class GraphicHand(Hand):
         self.topleft = topleft
         self.dimensions = (card_dimensions[0] * capacity, card_dimensions[1])
         self.rect = p.Rect(self.topleft, self.dimensions)
+        self.show_hand = True
 
     def add_card(self, card: GraphicCard | list[GraphicCard]):
-        if len(self.cards) < self.capacity:
-            if isinstance(card, list):
+        if isinstance(card, list):
+            if len(self.cards) + len(card) <= self.capacity:
+                if not self.show_hand:
+                    for c in card:
+                        c.flip()
                 self.cards.extend(card)
                 for i, c in enumerate(self.cards):
                     c.move(self.topleft[0] + i * c.width, self.topleft[1])
-            else:
-                card.move(self.topleft[0] + len(self.cards) * card.width, self.topleft[1])
-                self.cards.append(card)
+            else: raise ValueError("Mano piena")
         else:
-            raise ValueError("Mano piena")
+            card.move(self.topleft[0] + len(self.cards) * card.width, self.topleft[1])
+            card.flip()
+            self.cards.append(card)
+        
+        
+    def rearrange(self):
+        for i, card in enumerate(self.cards):
+            card.move(self.topleft[0] + i * card.width, self.topleft[1])
+            card.drop() # Drop the card so that it can be snapped back to its original position
+        
+    def set_card_back(self, value: bool):
+        if value:
+            for c in self.cards:
+                if not c.flipped:
+                    c.flip()
+        self.show_hand = value
         
 
     def render(self, surface: p.Surface):
@@ -128,10 +182,6 @@ class GraphicPlayer(Player):
         self.graphic_hand: GraphicHand = GraphicHand(game, topleft=(0, 500))
         self.graphic_hand.topleft = (self.game.GAME_W // 2 - self.graphic_hand.dimensions[0] // 2, self.game.GAME_H - self.graphic_hand.dimensions[1])
         self.graphic_hand.rect = p.Rect(self.graphic_hand.topleft, self.graphic_hand.dimensions)
-        # For debugging purposes
-        self.graphic_hand.add_card(GraphicCard(game, 1, "P"))
-        self.graphic_hand.add_card(GraphicCard(game, 2, "C"))
-        self.graphic_hand.add_card(GraphicCard(game, 1, "Q"))
         self.hand = self.graphic_hand.cards
         self.scope = 0
 
@@ -140,21 +190,34 @@ class GraphicPlayer(Player):
 
     def update(self):
         self.graphic_hand.update()
+   
+    def draw_cards(self, deck: Deck, amount: int):
+        self.graphic_hand.add_card([GraphicCard.from_card(c, self.game) for c in deck.draw(amount)])
 
-    def play_card(self, card: Card, board: Board):
+    def play_card(self, card: GraphicCard, board: Board):
+        if card.flipped:
+            card.flip()
         card = super().play_card(card, board)
         board.rearrange()
         return card
 
 
-class GraphicBot:
-    def __init__(self):
-        # Add your code here
-        pass
+class GraphicBot(GraphicPlayer):
+    def __init__(self, game: Game, show_hand: bool = True):
+        super().__init__(game)
+        # Move the hand to the top of the screen
+        self.graphic_hand.topleft = (self.game.GAME_W // 2 - self.graphic_hand.dimensions[0] // 2, 0)
+        self.graphic_hand.rect = p.Rect(self.graphic_hand.topleft, self.graphic_hand.dimensions)
+        self.graphic_hand.rearrange()
+        # Set the hand to show the back of the cards
+        self.graphic_hand.set_card_back(show_hand)
+        self.show_hand = show_hand
 
     def render(self, surface: p.Surface):
-        # Add your code here
-        pass
+        self.graphic_hand.render(surface)
+
+    def update(self):
+        self.graphic_hand.update()
 
 
 if __name__ == "__main__":

@@ -111,7 +111,7 @@ class Player:
         prese_possibili = set(board.calculate_sums())
         
         # Includiamo le prese a 15
-        for p in prese_possibili:
+        for p in prese_possibili.copy():
             if p.valore <= 15:
                 cards = p.cards
                 new_p = Presa(cards)
