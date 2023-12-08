@@ -74,15 +74,12 @@ class GameState(State):
 
     def update_bot(self, delta_time):
         self.bot.update()
-        # self.timer.start(1)
-        # if self.timer.finished:
-        #     print("AAAAAAAAAAAAAAAAAAAAAAAAAA")
-        #     print(self.bot.play_card(self.bot.think(self.board), self.board))
+        if not self.bot.has_played_card:
+            self.bot.play_card(self.bot.think(self.board), self.board, then=self.states.next)
+            self.bot.has_played_card = True
+            self.turn_count += 1
+        # Wait for animations to finish
+        # if len(self.game.tweener.tweens) == 0:
         #     self.turn_count += 1
         #     self.states.next()
-        print(self.bot.play_card(self.bot.think(self.board), self.board))
-        self.turn_count += 1
-        print(self.states.get_current())
-        self.states.next()
-        print(self.states.get_current())
 

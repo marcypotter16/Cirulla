@@ -4,6 +4,7 @@ import pygame as p
 import time
 
 from Generic.Stack import Stack
+from Tween.Tween import TweenManager
 
 
 
@@ -36,6 +37,8 @@ class Game:
         self.clicked_dx: int = 0
         self.dt, self.prev_time = 0, 0
         self.state_stack = Stack()
+
+        self.tweener = TweenManager()
 
         # self.event_system = EventSystem()
 
@@ -128,6 +131,7 @@ class Game:
             p.mouse.get_pos()[0] * self.GAME_W / self.SCREEN_W, p.mouse.get_pos()[1] * self.GAME_H / self.SCREEN_H)
         # self.state_stack.top().update(self.dt, self.actions)
         self.state_stack.top().update(self.dt)
+        self.tweener.update()
 
     def render(self):
         self.state_stack.top().render(self.game_canvas)

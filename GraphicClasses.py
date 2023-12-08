@@ -4,7 +4,8 @@ from Game import Game
 from GraphicUtil import CARD_PATHS
 import pygame as p
 
-from ConsolePlayer import Player
+from ConsolePlayer import Bot, Player
+from Tween.Tween import Tween
 from Utils.Text import draw_centered_text
 
 
@@ -28,7 +29,18 @@ class GraphicCard(Card):
         self.rect = p.Rect(self.position, (self.width, self.height))
 
     def snap_back(self):
-        self.move(*self.position_before_drag)
+        self.game.tweener.add_tween(self, "position", p.Vector2(self.position), p.Vector2(self.position_before_drag), 0.2, on_finish=self.on_snap_back_finish, motion="ease_in_out_cubic")
+
+    def on_snap_back_finish(self):
+        self.move(*self.position)
+
+    def on_tween_to_finish(self, callable: callable = None):
+        self.move(*self.position)
+        if callable:
+            callable()
+
+    def tween_to(self, x: int, y: int, duration: float = 0.2, on_finish: callable = None):
+        self.game.tweener.add_tween(self, "position", p.Vector2(self.position), p.Vector2(x, y), duration, on_finish=lambda: self.on_tween_to_finish(on_finish), motion="ease_in_out_cubic")
     
     def drop(self):
         self.position_before_drag = self.position
@@ -99,7 +111,7 @@ class GraphicBoard(Board):
 
     def rearrange(self):
         for i, card in enumerate(self.cards):
-            card.move(self.topleft[0] + i * card.width, self.topleft[1])
+            card.tween_to(self.topleft[0] + i * card.width, self.topleft[1])
             card.drop()
 
 class GraphicDeck(Deck):
@@ -184,12 +196,17 @@ class GraphicPlayer(Player):
         self.graphic_hand.rect = p.Rect(self.graphic_hand.topleft, self.graphic_hand.dimensions)
         self.hand = self.graphic_hand.cards
         self.scope = 0
+        self.tween = None
 
     def render(self, surface: p.Surface):
         self.graphic_hand.render(surface)
 
     def update(self):
         self.graphic_hand.update()
+        if self.tween:
+            self.tween.update()
+            if self.tween.is_finished():
+                self.tween = None
    
     def draw_cards(self, deck: Deck, amount: int):
         self.graphic_hand.add_card([GraphicCard.from_card(c, self.game) for c in deck.draw(amount)])
@@ -202,7 +219,7 @@ class GraphicPlayer(Player):
         return card
 
 
-class GraphicBot(GraphicPlayer):
+class GraphicBot(GraphicPlayer, Bot):
     def __init__(self, game: Game, show_hand: bool = True):
         super().__init__(game)
         # Move the hand to the top of the screen
@@ -213,11 +230,33 @@ class GraphicBot(GraphicPlayer):
         self.graphic_hand.set_card_back(show_hand)
         self.show_hand = show_hand
 
+        self.has_played_card = False
+
     def render(self, surface: p.Surface):
         self.graphic_hand.render(surface)
 
     def update(self):
         self.graphic_hand.update()
+
+    def play_card(self, card: GraphicCard, board: Board, then: callable = None):
+        if card.flipped:
+            card.flip()
+        # Find the target coordinates in the board:
+        #   - x: the center of the board
+        #   - y: the top of the board
+        x = board.rect.centerx
+        y = board.rect.top
+        # Tween the card to the target coordinates
+        def on_finish():
+            Bot.play_card(self, card, board)
+            board.rearrange()
+            if then:
+                then()
+            self.has_played_card = False
+        card.tween_to(x, y, duration=1.0, on_finish=on_finish)
+        # card2 = Bot.play_card(self, card, board)
+        #board.rearrange()
+        return card
 
 
 if __name__ == "__main__":
