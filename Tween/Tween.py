@@ -100,3 +100,6 @@ class TweenManager:
                 if tween.on_finish:
                     tween.on_finish.__call__()
                 self.tweens.remove(tween)
+
+    def is_empty(self) -> bool:
+        return len(self.tweens) == 0

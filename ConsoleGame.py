@@ -37,6 +37,8 @@ class Deck:
         for i in range(1, 11):
             for s in ["P", "C", "Q", "F"]:
                 self.cards.append(Card(i, s))
+        # For debug: limit the cards to the desired size
+        self.cards = self.cards[:size]
 
     def shuffle(self):
         shuffle(self.cards)

@@ -14,9 +14,9 @@ class GameState(State):
         super().__init__(game)
         self.game = game
         self.player = GraphicPlayer(game)
-        self.bot = GraphicBot(game, show_hand=False)
+        self.bot = GraphicBot(game, show_hand=False, smart=True)
         self.board = GraphicBoard(game)
-        self.deck = GraphicDeck(game, position=(200, game.GAME_H // 2 - 75), card_dimensions=(100, 150))
+        self.deck = GraphicDeck(game, size=10, position=(200, game.GAME_H // 2 - 75), card_dimensions=(100, 150))
         self.deck.shuffle()
         self.timer = Timer()
         self.turn_count: int = 0
@@ -26,7 +26,8 @@ class GameState(State):
             self.states.add("PlayerTurn")
             self.states.add("BotTurn")
         self.states.set_current(0)
-        print([s for s in self.states.items])
+        self.last_to_take = "Bot"
+        self.animating_last_turn = False
 
     def render(self, surface):
         super().render(surface)
@@ -35,10 +36,6 @@ class GameState(State):
         self.bot.render(surface)
         self.player.render(surface)
         draw_text(self.game.font_medium, surface, f"Turno {self.turn_count // 2 + 1}", (255, 255, 255), 0, 0)
-        # Debug
-        draw_text(self.game.font_small, surface, self.board, (255, 255, 255), 0, 20)
-        draw_text(self.game.font_small, surface, self.timer.finished, (255, 255, 255), 0, 40)
-        draw_text(self.game.font_medium, surface, str(self.states.get_current()), (255, 255, 255), 0, 60)
 
     def update(self, delta_time):
         super().update(delta_time)
@@ -46,20 +43,34 @@ class GameState(State):
         self.deck.update()
         if self.states.get_current() == "BeginTurn":
             if self.deck.is_empty():
-                EndGameState(self.game).enter_state()
-                return
-            self.player.draw_cards(self.deck, 3)
-            self.bot.draw_cards(self.deck, 3)
-            # Add 4 cards at the beginning of the game
-            if self.turn_count == 0:
-                self.board.cards.extend([GraphicCard.from_card(c, self.game) for c in self.deck.draw(4)])
-            self.board.rearrange()
-            self.states.next()
+                # Play the last animation and go to the end game state
+                if not self.animating_last_turn:
+                    # Who took last takes everything on the board
+                    who_took_last = self.player if self.last_to_take == "Player" else self.bot
+                    who_took_last.graphic_won_cards.add_cards(self.board.cards)
+                    self.board.cards = []
+                    who_took_last.graphic_won_cards.rearrange()
+                    self.board.rearrange()
+                    self.animating_last_turn = True
+                if self.game.tweener.is_empty():
+                    EndGameState(self.game).enter_state()
+            else:
+                self.player.draw_cards(self.deck, 3)
+                self.bot.draw_cards(self.deck, 3)
+                # Add 4 cards at the beginning of the game
+                if self.turn_count == 0:
+                    self.board.cards.extend([GraphicCard.from_card(c, self.game) for c in self.deck.draw(4)])
+                self.board.rearrange()
+                self.states.next()
         if self.states.get_current() == "PlayerTurn":
             self.update_player(delta_time)
         if self.states.get_current() == "BotTurn":
             self.update_bot(delta_time)
-        self.timer.update(delta_time)
+
+        self.bot.scope_text = f"Scope: {self.bot.scope}"
+        self.player.scope_text = f"Scope: {self.player.scope}"
+
+        self.last_to_take = "Bot" if self.bot.has_taken_last_turn else "Player"
 
     def update_player(self, delta_time):
         self.player.update()

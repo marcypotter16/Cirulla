@@ -5,8 +5,7 @@ from GraphicUtil import CARD_PATHS
 import pygame as p
 
 from ConsolePlayer import Bot, Player
-from Tween.Tween import Tween
-from Utils.Text import draw_centered_text
+from Utils.Text import draw_centered_text, draw_text
 
 
 class GraphicCard(Card):
@@ -109,9 +108,9 @@ class GraphicBoard(Board):
     def update(self):
         pass
 
-    def rearrange(self):
+    def rearrange(self, then: callable = None):
         for i, card in enumerate(self.cards):
-            card.tween_to(self.topleft[0] + i * card.width, self.topleft[1])
+            card.tween_to(self.topleft[0] + i * card.width, self.topleft[1], on_finish=then)
             card.drop()
 
 class GraphicDeck(Deck):
@@ -189,24 +188,28 @@ class GraphicHand(Hand):
 
 class GraphicPlayer(Player):
     def __init__(self, game: Game):
+        super().__init__()
         self.game = game
-        self.won_cards: list[Card] = []
         self.graphic_hand: GraphicHand = GraphicHand(game, topleft=(0, 500))
         self.graphic_hand.topleft = (self.game.GAME_W // 2 - self.graphic_hand.dimensions[0] // 2, self.game.GAME_H - self.graphic_hand.dimensions[1])
         self.graphic_hand.rect = p.Rect(self.graphic_hand.topleft, self.graphic_hand.dimensions)
         self.hand = self.graphic_hand.cards
-        self.scope = 0
-        self.tween = None
-
+        self.scope_text = "Scope: 0"
+        self.scope_text_rect = p.Rect(self.graphic_hand.rect)
+        self.scope_text_rect.left += 300
+        pos = p.Vector2(self.graphic_hand.rect.right + 50, self.graphic_hand.rect.top - 20)
+        self.graphic_won_cards = GraphicWonCards(game, position=pos, dimensions=(50, 75), label="Carte vinte")
+        # This is for the last take (the last to take a card takes everything on the board)
+        self.has_taken_last_turn = False
+ 
     def render(self, surface: p.Surface):
         self.graphic_hand.render(surface)
+        draw_centered_text(self.game.font_medium, surface, self.scope_text, (255, 255, 255), self.scope_text_rect)
+        self.graphic_won_cards.render(surface)
 
     def update(self):
         self.graphic_hand.update()
-        if self.tween:
-            self.tween.update()
-            if self.tween.is_finished():
-                self.tween = None
+        self.graphic_won_cards.update()
    
     def draw_cards(self, deck: Deck, amount: int):
         self.graphic_hand.add_card([GraphicCard.from_card(c, self.game) for c in deck.draw(amount)])
@@ -214,29 +217,73 @@ class GraphicPlayer(Player):
     def play_card(self, card: GraphicCard, board: Board):
         if card.flipped:
             card.flip()
-        card = super().play_card(card, board)
+        # Buona tre e dieci
+        if self.is_buona_dieci():
+            self.scope += 10
+        elif self.is_buona_tre():
+            self.scope += 3
+        # Assi
+        if card.valore == 1 and 1 not in [c.valore for c in board.cards] and not board.is_empty():
+            print("Scopa con l'asso")
+            self.scope += 1
+            self.won_cards.extend(board.cards)
+            self.graphic_won_cards.add_cards(board.cards)
+            self.won_cards.append(card)
+            self.graphic_won_cards.add_cards(card)
+            board.cards = []
+        
+        else:
+            prese_possibili = set(board.calculate_sums())
+        
+            for p in prese_possibili:
+                if p.valore == card.valore or p.valore + card.valore == 15:
+                    self.has_taken_last_turn = True
+                    p.cards.add(card)
+                    self.won_cards.extend(p.cards)
+                    self.graphic_won_cards.add_cards(list(p.cards))
+                    board.cards = list(set(board.cards) - set(p.cards))
+                    # Controllo se ho fatto scopa
+                    if len(board.cards) == 0:
+                        print("Scopa!")
+                        self.scope += 1
+                    break
+            else:
+                self.has_taken_last_turn = False
+                board.cards.append(card)
+        self.hand.remove(card)
         board.rearrange()
+        self.graphic_won_cards.rearrange()
         return card
 
 
 class GraphicBot(GraphicPlayer, Bot):
-    def __init__(self, game: Game, show_hand: bool = True):
+    def __init__(self, game: Game, show_hand: bool = True, smart: bool = False):
         super().__init__(game)
         # Move the hand to the top of the screen
         self.graphic_hand.topleft = (self.game.GAME_W // 2 - self.graphic_hand.dimensions[0] // 2, 0)
         self.graphic_hand.rect = p.Rect(self.graphic_hand.topleft, self.graphic_hand.dimensions)
         self.graphic_hand.rearrange()
+        # Adjust the scope text position
+        self.scope_text_rect = p.Rect(self.graphic_hand.rect)
+        self.scope_text_rect.left += 300
+        # Adjust the position of the won cards
+        pos = p.Vector2(self.graphic_hand.rect.right + 50, self.graphic_hand.rect.top)
+        self.graphic_won_cards = GraphicWonCards(game, position=pos, dimensions=(50, 75), label="Carte vinte", show_back=True)
         # Set the hand to show the back of the cards
         self.graphic_hand.set_card_back(show_hand)
         self.show_hand = show_hand
+        
+        self.is_smart = smart
 
         self.has_played_card = False
 
     def render(self, surface: p.Surface):
-        self.graphic_hand.render(surface)
+        GraphicPlayer.render(self, surface)
 
     def update(self):
+        # GraphicPlayer.update(self)
         self.graphic_hand.update()
+        self.graphic_won_cards.update()
 
     def play_card(self, card: GraphicCard, board: Board, then: callable = None):
         if card.flipped:
@@ -248,7 +295,7 @@ class GraphicBot(GraphicPlayer, Bot):
         y = board.rect.top
         # Tween the card to the target coordinates
         def on_finish():
-            Bot.play_card(self, card, board)
+            GraphicPlayer.play_card(self, card, board)
             board.rearrange()
             if then:
                 then()
@@ -258,6 +305,55 @@ class GraphicBot(GraphicPlayer, Bot):
         #board.rearrange()
         return card
 
+    def think(self, board: Board) -> GraphicCard:
+        if not self.is_smart:
+            return Bot.think(self, board)
+        else:
+            return GraphicPlayer.think(self, board)
+        
+
+class GraphicWonCards:
+    def __init__(self, game: Game, position: tuple[int, int] = (0, 0), dimensions: tuple[int, int] = (100, 150), label: str = "Carte", show_back: bool = True) -> None:
+        self.game = game
+        self.cards: list[GraphicCard] = []
+        self.position = position
+        self.width, self.height = dimensions
+        self.rect = p.Rect(self.position, (self.width, self.height))
+        self.label = label
+        self.show_back = show_back
+
+    def render(self, surface: p.Surface):
+        p.draw.rect(surface, (255, 255, 255), self.rect, 1)
+        draw_text(self.game.font_small, surface, self.label, (255, 255, 255), self.rect.left - 5, self.rect.bottom + 10)
+        for card in self.cards:
+            card.render(surface)
+        draw_centered_text(self.game.font_medium, surface, f"{len(self.cards)}", (0, 255, 0), self.rect)
+
+    def update(self):
+        pass
+
+    def add_cards(self, cards: GraphicCard | list[GraphicCard]):
+        if isinstance(cards, list):
+            if self.show_back:
+                for c in cards:
+                    if not c.flipped:
+                        c.flip()
+            self.cards.extend(cards)
+            # for card in cards:
+                # card.tween_to(self.position[0], self.position[1])
+        else:
+            if self.show_back:
+                if not cards.flipped:
+                    cards.flip()
+            self.cards.append(cards)
+            # cards.tween_to(self.position[0], self.position[1])
+    
+    def rearrange(self):
+        # Stack the cards vertically
+        for i, card in enumerate(self.cards):
+            card.tween_to(self.position[0], self.position[1] + i * 2)
+            card.drop()
+    
 
 if __name__ == "__main__":
     # Use pygame to test all the cards

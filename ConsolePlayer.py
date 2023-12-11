@@ -136,6 +136,17 @@ class Player:
         return best_carta
     
     def play_card(self, card: Card, board: Board):
+        """
+        Plays a card on the board and updates the player's score.
+
+        Args:
+            card (Card): The card to be played.
+            board (Board): The current state of the game board.
+
+        Returns:
+            Card: The card that was played.
+        """
+        # Rest of the code...
         # Buona tre e dieci
         if self.is_buona_dieci():
             self.scope += 10
@@ -143,8 +154,10 @@ class Player:
             self.scope += 3
         # Assi
         if card.valore == 1 and 1 not in [c.valore for c in board.cards] and not board.is_empty():
+            print("Scopa con l'asso")
             self.scope += 1
             self.won_cards.extend(board.cards)
+            self.won_cards.append(card)
             board.cards = []
         
         else:
@@ -157,6 +170,7 @@ class Player:
                     board.cards = list(set(board.cards) - set(p.cards))
                     # Controllo se ho fatto scopa
                     if len(board.cards) == 0:
+                        print("Scopa!")
                         self.scope += 1
                     break
             else:
