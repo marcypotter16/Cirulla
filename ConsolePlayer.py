@@ -154,7 +154,6 @@ class Player:
             self.scope += 3
         # Assi
         if card.valore == 1 and 1 not in [c.valore for c in board.cards] and not board.is_empty():
-            print("Scopa con l'asso")
             self.scope += 1
             self.won_cards.extend(board.cards)
             self.won_cards.append(card)
@@ -170,7 +169,6 @@ class Player:
                     board.cards = list(set(board.cards) - set(p.cards))
                     # Controllo se ho fatto scopa
                     if len(board.cards) == 0:
-                        print("Scopa!")
                         self.scope += 1
                     break
             else:

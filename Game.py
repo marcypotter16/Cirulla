@@ -50,10 +50,13 @@ class Game:
 
         self.mousepos = None
         self.base_dir = workdir
-        self.load_assets()
-        self.load_map()
-        self.load_states()
-        self.load_sounds()
+        try:
+            self.load_assets()
+            self.load_map()
+            self.load_states()
+            self.load_sounds()
+        except:
+            pass
 
     def game_loop(self):
         while self.playing:

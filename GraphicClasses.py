@@ -82,7 +82,9 @@ class GraphicCard(Card):
         """
         Create a GraphicCard from a Card
         """
-        return GraphicCard(game, card.valore, card.seme)
+        if card is not None:
+            return GraphicCard(game, card.valore, card.seme)
+        return None
 
 
 class GraphicBoard(Board):

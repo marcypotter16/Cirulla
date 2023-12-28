@@ -16,7 +16,7 @@ class GameState(State):
         self.player = GraphicPlayer(game)
         self.bot = GraphicBot(game, show_hand=False, smart=True)
         self.board = GraphicBoard(game)
-        self.deck = GraphicDeck(game, size=10, position=(200, game.GAME_H // 2 - 75), card_dimensions=(100, 150))
+        self.deck = GraphicDeck(game, size=40, position=(200, game.GAME_H // 2 - 75), card_dimensions=(100, 150))
         self.deck.shuffle()
         self.timer = Timer()
         self.turn_count: int = 0
@@ -48,12 +48,14 @@ class GameState(State):
                     # Who took last takes everything on the board
                     who_took_last = self.player if self.last_to_take == "Player" else self.bot
                     who_took_last.graphic_won_cards.add_cards(self.board.cards)
+                    who_took_last.won_cards.extend(self.board.cards)
                     self.board.cards = []
                     who_took_last.graphic_won_cards.rearrange()
                     self.board.rearrange()
                     self.animating_last_turn = True
                 if self.game.tweener.is_empty():
-                    EndGameState(self.game).enter_state()
+                    print([str(c) for c in self.player.won_cards], [str(c) for c in self.bot.won_cards])
+                    EndGameState(self.game, [self.player, self.bot]).enter_state()
             else:
                 self.player.draw_cards(self.deck, 3)
                 self.bot.draw_cards(self.deck, 3)
