@@ -100,7 +100,7 @@ class Player:
             s += 1
         
         # Denari
-        if len([c for c in self.won_cards if c.seme == "C"]) >= 6:
+        if len([c for c in self.won_cards if c.seme == "Q"]) >= 6:
             s += 1
 
         return s + self.scope
